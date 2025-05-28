@@ -1,4 +1,4 @@
-import mongoose from 'mongoose'; // Use import instead of require
+import mongoose from 'mongoose';
 
 const citySchema = new mongoose.Schema({
   name: {
@@ -6,15 +6,12 @@ const citySchema = new mongoose.Schema({
     required: true,
     unique: true,
     trim: true,
-  },
-  imageUrl: {
-    type: String,
-    required: true,
   }
+  // imageUrl field removed
 }, {
   timestamps: true,
 });
 
 const City = mongoose.model('City', citySchema);
 
-export default City; // Use export default instead of module.exports
+export default City;

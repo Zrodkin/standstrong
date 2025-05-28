@@ -26,6 +26,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion"
 import { getClasses } from "../services/classService"
 import { format } from "date-fns"
+import getFullImageUrl from "../utils/getFullImageUrl"; // <<<< IMPORT THE CORRECT UTILITY
 
 // --- Motion Variants ---
 const pageVariants = {
@@ -112,7 +113,7 @@ const ClassesPage = () => {
         })
 
         const filteredClassesData = await getClasses(apiFilters)
-        console.log("API Response:", JSON.stringify(filteredClassesData, null, 2));
+        // console.log("API Response:", JSON.stringify(filteredClassesData, null, 2)); // Already present
         setClasses(filteredClassesData)
 
         if (hasActiveFilters) {
@@ -178,7 +179,7 @@ const ClassesPage = () => {
 
   // Sort classes based on the selected sort option
   const sortedClasses = useMemo(() => {
-    if (!classes.length) return []
+    if (!classes || !classes.length) return [] // Add null check for classes
     
     const sorted = [...classes]
     
@@ -196,13 +197,13 @@ const ClassesPage = () => {
           return dateB - dateA
         })
       case "price-asc":
-        return sorted.sort((a, b) => a.cost - b.cost)
+        return sorted.sort((a, b) => (a.cost || 0) - (b.cost || 0)) // Add null check for cost
       case "price-desc":
-        return sorted.sort((a, b) => b.cost - a.cost)
+        return sorted.sort((a, b) => (b.cost || 0) - (a.cost || 0)) // Add null check for cost
       case "name-asc":
-        return sorted.sort((a, b) => a.title.localeCompare(b.title))
+        return sorted.sort((a, b) => (a.title || "").localeCompare(b.title || "")) // Add null check for title
       case "name-desc":
-        return sorted.sort((a, b) => b.title.localeCompare(a.title))
+        return sorted.sort((a, b) => (b.title || "").localeCompare(a.title || "")) // Add null check for title
       default:
         return sorted
     }
@@ -228,7 +229,7 @@ const ClassesPage = () => {
       const formattedFirstDate = format(firstDateObj, "MMM d")
 
       if (classItem.type === "one-time") {
-        return `${formattedFirstDate}, ${firstSession.startTime}`
+        return `${formattedFirstDate}, ${formatTime(firstSession.startTime)}` // Use formatTime for consistency
       }
 
       if (classItem.type === "ongoing" && sortedSessions.length > 1) {
@@ -246,35 +247,7 @@ const ClassesPage = () => {
     }
   }
 
-// Helper to get full image URL
-const getFullImageUrl = (partialUrl, type = 'image') => {
-  if (!partialUrl) return "/placeholder.svg";
-
-  // If it's already a full URL, return it
-  if (partialUrl.startsWith("http")) return partialUrl;
-
-  // Check if the path already contains the folder name
-  if (partialUrl.includes('partner-logos')) {
-    type = 'logo';
-  } else if (partialUrl.includes('class-images')) {
-    type = 'image';
-  }
-
-  // Extract filename - get the last part of the path
-  const filename = partialUrl.split("/").pop();
-  
-  // Determine folder based on type
-  const folder = type === 'logo' ? 'partner-logos' : 'class-images';
-
-  // In development, always use the backend URL
-  if (window.location.hostname === "localhost") {
-    const apiBaseUrl = import.meta.env.VITE_API_URL;
-    return `${apiBaseUrl}/uploads/${folder}/${filename}`;
-  }
-
-  // In production, use the relative path
-  return `/uploads/${folder}/${filename}`;
-};
+  // REMOVED LOCAL getFullImageUrl function definition
 
   // Helper to format times
   const formatTime = (timeStr) => {
@@ -335,8 +308,8 @@ const getFullImageUrl = (partialUrl, type = 'image') => {
     <div className="bg-slate-50 min-h-screen flex flex-col">
       {/* Hero Section with Enhanced Gradient and Typography */}
       <div className="relative text-white overflow-hidden py-16 md:py-24" style={{
-  background: "linear-gradient(90deg, rgba(21, 111, 176, 1) 0%, rgba(97, 174, 199, 1) 30%, rgba(97, 174, 199, 1) 70%, rgba(21, 111, 176, 1) 100%)"
-}}>
+        background: "linear-gradient(90deg, rgba(21, 111, 176, 1) 0%, rgba(97, 174, 199, 1) 30%, rgba(97, 174, 199, 1) 70%, rgba(21, 111, 176, 1) 100%)"
+      }}>
         <div className="absolute inset-0 bg-grid-white/[0.05] bg-[length:16px_16px]"></div>
         <div className="absolute inset-0 bg-gradient-to-t from-blue-900/50 to-transparent"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -399,22 +372,22 @@ const getFullImageUrl = (partialUrl, type = 'image') => {
       >
         {/* Toolbar - Sort and View Options */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-  <div className="flex items-center gap-2">
-    {classesLoading ? (
-      <div className="h-5 w-40 bg-gray-200 rounded animate-pulse"></div>
-    ) : (
-      <p className="text-sm text-gray-500">
-        Showing <span className="font-medium text-gray-700">{sortedClasses.length}</span> classes
-      </p>
-    )}
-    
-    {hasActiveFilters && (
-      <span className="inline-flex items-center text-xs font-medium text-gray-500 px-2 py-1 rounded-full border border-gray-200 bg-gray-50">
-        <FiFilter className="h-3 w-3 mr-1" />
-        {activeFiltersCount} {activeFiltersCount === 1 ? 'filter' : 'filters'} applied
-      </span>
-    )}
-  </div>
+          <div className="flex items-center gap-2">
+            {classesLoading ? (
+              <div className="h-5 w-40 bg-gray-200 rounded animate-pulse"></div>
+            ) : (
+              <p className="text-sm text-gray-500">
+                Showing <span className="font-medium text-gray-700">{sortedClasses.length}</span> classes
+              </p>
+            )}
+            
+            {hasActiveFilters && (
+              <span className="inline-flex items-center text-xs font-medium text-gray-500 px-2 py-1 rounded-full border border-gray-200 bg-gray-50">
+                <FiFilter className="h-3 w-3 mr-1" />
+                {activeFiltersCount} {activeFiltersCount === 1 ? 'filter' : 'filters'} applied
+              </span>
+            )}
+          </div>
           
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -448,166 +421,165 @@ const getFullImageUrl = (partialUrl, type = 'image') => {
         )}
 
        {/* Classes Content - Conditional Rendering with Enhanced States */}
-{classesLoading ? (
-  // Enhanced Loading State
-  <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-    {[1, 2, 3, 4, 5, 6].map((index) => (
-      <div key={index} className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <div className="h-48 bg-gray-200 animate-pulse"></div>
-        <div className="p-5 space-y-3">
-          <div className="h-6 w-3/4 bg-gray-200 rounded animate-pulse"></div>
-          <div className="h-4 w-full bg-gray-200 rounded animate-pulse"></div>
-          <div className="h-4 w-2/3 bg-gray-200 rounded animate-pulse"></div>
-          <div className="pt-4 flex justify-between">
-            <div className="h-8 w-20 bg-gray-200 rounded animate-pulse"></div>
-            <div className="h-8 w-24 bg-gray-200 rounded animate-pulse"></div>
+        {classesLoading ? (
+          // Enhanced Loading State
+          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((index) => (
+              <div key={index} className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div className="h-48 bg-gray-200 animate-pulse"></div>
+                <div className="p-5 space-y-3">
+                  <div className="h-6 w-3/4 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="h-4 w-full bg-gray-200 rounded animate-pulse"></div>
+                  <div className="h-4 w-2/3 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="pt-4 flex justify-between">
+                    <div className="h-8 w-20 bg-gray-200 rounded animate-pulse"></div>
+                    <div className="h-8 w-24 bg-gray-200 rounded animate-pulse"></div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-      </div>
-    ))}
-  </div>
-) : error ? (
-  // Enhanced Error State
-  <div className="bg-red-50 border border-red-200 p-6 mt-6 rounded-xl shadow-sm flex items-start">
-    <FiAlertCircle className="h-6 w-6 text-red-500 mr-4 flex-shrink-0 mt-0.5" />
-    <div>
-      <h3 className="text-lg font-medium text-red-800 mb-1">Unable to load classes</h3>
-      <p className="text-sm text-red-700">{error}</p>
-      <button
-        onClick={() => window.location.reload()}
-        className="mt-3 text-sm font-medium text-red-700 hover:text-red-800 underline"
-      >
-        Try again
-      </button>
-    </div>
-  </div>
-) : sortedClasses.length === 0 ? (
-  // Enhanced Empty State
-  <div className="bg-white border border-gray-100 shadow-sm rounded-xl py-16 px-6 text-center mt-8 flex flex-col items-center">
-    <div className="bg-blue-50 p-4 rounded-full mb-4">
-      <FiInfo className="w-10 h-10 text-blue-500" />
-    </div>
-    <h3 className="text-xl font-semibold text-gray-800 mb-2">
-      No Classes Found {hasActiveFilters ? "Matching Your Filters" : `in ${selectedCity}`}
-    </h3>
-    <p className="mt-2 text-base text-gray-500 max-w-md mx-auto">
-      {hasActiveFilters
-        ? "Try adjusting your filters or clearing them to see all available classes."
-        : "Check back later or try searching in a different city!"}
-    </p>
-    {hasActiveFilters && (
-      <button
-        onClick={handleClearFilters}
-        className="mt-6 px-5 py-2.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 transition-all"
-      >
-        Clear Filters
-      </button>
-    )}
-  </div>
-) : (
-  // Enhanced Classes Grid with Animation
-  <motion.div 
-    variants={cardContainerVariants}
-    initial="hidden"
-    animate="visible"
-    className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-  >
-    {sortedClasses.map((classItem) => (
-      <motion.div key={classItem._id} variants={cardItemVariants} layout>
-        {/* Grid View */}
-        <div className="bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-100 transition-all duration-300 ease-out overflow-hidden flex flex-col h-full group">
-          <Link
-            to={`/classes/${classItem._id}`}
-            state={{ city: selectedCity }}
-            className="relative aspect-video bg-gray-100 overflow-hidden"
+        ) : error ? (
+          // Enhanced Error State
+          <div className="bg-red-50 border border-red-200 p-6 mt-6 rounded-xl shadow-sm flex items-start">
+            <FiAlertCircle className="h-6 w-6 text-red-500 mr-4 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-lg font-medium text-red-800 mb-1">Unable to load classes</h3>
+              <p className="text-sm text-red-700">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-3 text-sm font-medium text-red-700 hover:text-red-800 underline"
+              >
+                Try again
+              </button>
+            </div>
+          </div>
+        ) : sortedClasses.length === 0 ? (
+          // Enhanced Empty State
+          <div className="bg-white border border-gray-100 shadow-sm rounded-xl py-16 px-6 text-center mt-8 flex flex-col items-center">
+            <div className="bg-blue-50 p-4 rounded-full mb-4">
+              <FiInfo className="w-10 h-10 text-blue-500" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">
+              No Classes Found {hasActiveFilters ? "Matching Your Filters" : `in ${selectedCity}`}
+            </h3>
+            <p className="mt-2 text-base text-gray-500 max-w-md mx-auto">
+              {hasActiveFilters
+                ? "Try adjusting your filters or clearing them to see all available classes."
+                : "Check back later or try searching in a different city!"}
+            </p>
+            {hasActiveFilters && (
+              <button
+                onClick={handleClearFilters}
+                className="mt-6 px-5 py-2.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 transition-all"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
+        ) : (
+          // Enhanced Classes Grid with Animation
+          <motion.div 
+            variants={cardContainerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
           >
-              {classItem.imageUrl ? (
-    <img
-      src={getFullImageUrl(classItem.imageUrl, 'image')}
-      alt={classItem.title || "Class Image"}
-      className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
-      onError={(e) => {
-        console.warn("Failed to load image:", e.target.src);
-        e.target.src = "/placeholder.svg";
-      }}
-    />
-  ) : (
-    <div 
-    className="w-full h-full bg-cover bg-center transition-transform duration-300 group-hover:scale-105" 
-    style={{ backgroundImage: `url(/placeholder.svg)` }}
-  ></div>
-)}
-            <div className="absolute top-3 right-3 flex flex-col gap-2">
-              {getClassTypeBadge(classItem.type)}
-              {getGenderBadge(classItem.targetGender)}
-            </div>
-          </Link>
+            {sortedClasses.map((classItem) => (
+              <motion.div key={classItem._id} variants={cardItemVariants} layout>
+                {/* Grid View */}
+                <div className="bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-100 transition-all duration-300 ease-out overflow-hidden flex flex-col h-full group">
+                  <Link
+                    to={`/classes/${classItem._id}`}
+                    state={{ city: selectedCity }}
+                    className="relative aspect-video bg-gray-100 overflow-hidden"
+                  >
+                    <img
+                      src={getFullImageUrl(classItem.imageUrl)} // Use the imported utility
+                      alt={classItem.title || "Class Image"}
+                      className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
+                      onError={(e) => {
+                        console.warn("Failed to load image:", e.target.src);
+                        e.target.src = "/placeholder.svg"; // Fallback to a placeholder
+                      }}
+                    />
+                    <div className="absolute top-3 right-3 flex flex-col gap-2">
+                      {getClassTypeBadge(classItem.type)}
+                      {getGenderBadge(classItem.targetGender)}
+                    </div>
+                  </Link>
 
-          <div className="p-5 pt-4 flex flex-col flex-grow">
+                  <div className="p-5 pt-4 flex flex-col flex-grow">
+                    {/* Title and Basic Info - Kept this concise */}
+                    <Link to={`/classes/${classItem._id}`} state={{ city: selectedCity }}>
+                      <h3 className="text-lg font-semibold text-gray-800 hover:text-blue-600 transition-colors truncate" title={classItem.title}>
+                        {classItem.title || "Untitled Class"}
+                      </h3>
+                    </Link>
 
-            <div className="mt-auto space-y-3 text-sm text-gray-700 border-t border-gray-100 pt-2">
-              {/* Instructor */}
-              <div className="flex items-center">
-                <div className="bg-blue-50 p-1.5 rounded-full mr-3">
-                  <FiUser className="flex-shrink-0 h-4 w-4 text-blue-500" />
+                    <div className="mt-auto space-y-3 text-sm text-gray-700 border-t border-gray-100 pt-4 mt-4"> {/* Added mt-4 for spacing */}
+                      {/* Instructor */}
+                      <div className="flex items-center">
+                        <div className="bg-blue-50 p-1.5 rounded-full mr-3">
+                          <FiUser className="flex-shrink-0 h-4 w-4 text-blue-500" />
+                        </div>
+                        <span className="font-medium">{classItem.instructor?.name || "Instructor TBD"}</span>
+                      </div>
+
+                      {/* Location */}
+                      <div className="flex items-center min-w-0">
+                        <div className="bg-blue-50 p-1.5 rounded-full mr-3">
+                          <FiMapPin className="flex-shrink-0 h-4 w-4 text-blue-500" />
+                        </div>
+                        <span className="truncate" title={classItem.city || "Location TBD"}>
+                          {classItem.city || "Location TBD"}
+                        </span>
+                      </div>
+
+                      {/* Schedule */}
+                      <div className="flex items-center">
+                        <div className="bg-blue-50 p-1.5 rounded-full mr-3">
+                          <FiCalendar className="flex-shrink-0 h-4 w-4 text-blue-500" />
+                        </div>
+                        <span>{formatSchedule(classItem)}</span>
+                      </div>
+
+                      {/* Cost */}
+                      <div className="flex items-center">
+                        <div className="bg-blue-50 p-1.5 rounded-full mr-3">
+                          <FiDollarSign className="flex-shrink-0 h-4 w-4 text-blue-500" />
+                        </div>
+                        <span className="font-medium">
+                          {classItem.cost === 0 ? "Free" : classItem.cost !== undefined ? `$${classItem.cost}` : "Price TBD"}
+                        </span>
+                      </div>
+
+                      {/* Capacity */}
+                      <div className="flex items-center">
+                        <div className="bg-blue-50 p-1.5 rounded-full mr-3">
+                          <FiUsers className="flex-shrink-0 h-4 w-4 text-blue-500" />
+                        </div>
+                        <span>
+                          {(classItem.registrations?.length || classItem.enrollmentCount) ?? 0}/{classItem.capacity ?? '?'} spots filled
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* View Details Button */}
+                    <Link
+                      to={`/classes/${classItem._id}`}
+                      state={{ city: selectedCity }}
+                      className="mt-5 text-blue-600 font-medium text-sm flex items-center group-hover:text-blue-700"
+                    >
+                      View details
+                      <FiChevronRight className="ml-1 h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                    </Link>
+                  </div>
                 </div>
-                <span className="font-medium">{classItem.instructor?.name || "Instructor TBD"}</span>
-              </div>
-
-              {/* Location */}
-              <div className="flex items-center min-w-0">
-                <div className="bg-blue-50 p-1.5 rounded-full mr-3">
-                  <FiMapPin className="flex-shrink-0 h-4 w-4 text-blue-500" />
-                </div>
-                <span className="truncate" title={classItem.city || "Location TBD"}>
-                  {classItem.city || "Location TBD"}
-                </span>
-              </div>
-
-              {/* Schedule */}
-              <div className="flex items-center">
-                <div className="bg-blue-50 p-1.5 rounded-full mr-3">
-                  <FiCalendar className="flex-shrink-0 h-4 w-4 text-blue-500" />
-                </div>
-                <span>{formatSchedule(classItem)}</span>
-              </div>
-
-              {/* Cost */}
-              <div className="flex items-center">
-                <div className="bg-blue-50 p-1.5 rounded-full mr-3">
-                  <FiDollarSign className="flex-shrink-0 h-4 w-4 text-blue-500" />
-                </div>
-                <span className="font-medium">
-                  {classItem.cost === 0 ? "Free" : classItem.cost !== undefined ? `$${classItem.cost}` : "Price TBD"}
-                </span>
-              </div>
-
-              {/* Capacity */}
-              <div className="flex items-center">
-                <div className="bg-blue-50 p-1.5 rounded-full mr-3">
-                  <FiUsers className="flex-shrink-0 h-4 w-4 text-blue-500" />
-                </div>
-                <span>
-                  {classItem.registeredStudents?.length ?? 0}/{classItem.capacity ?? '?'} spots filled
-                </span>
-              </div>
-            </div>
-
-            {/* View Details Button */}
-            <Link
-              to={`/classes/${classItem._id}`}
-              state={{ city: selectedCity }}
-              className="mt-5 text-blue-600 font-medium text-sm flex items-center group-hover:text-blue-700"
-            >
-              View details
-              <FiChevronRight className="ml-1 h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-          </div>
-        </div>
-      </motion.div>
-    ))}
-  </motion.div>
-)}
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
 
 
         {/* Featured Testimonial Section */}

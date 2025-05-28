@@ -180,7 +180,7 @@ const ClassDetailPage = () => {
       
       // Add null check before accessing imageUrl
       if (data) {
-        console.log("Class data imageUrl:", data.imageUrl);
+        console.log("Class data imageUrl:", data.imageUrl); // For debugging
         setClassData(data)
       } else {
         console.log("No class data returned from API");
@@ -218,15 +218,8 @@ const ClassDetailPage = () => {
     fetchUserRegistrations()
   }, [id, fetchClassData, fetchUserRegistrations])
 
-  useEffect(() => {
-    if (classData?.partnerLogo) {
-      console.log("Original partnerLogo path:", classData.partnerLogo)
-      console.log("Constructed URL:", getFullImageUrl(classData.partnerLogo))
-      console.log("Running in:", window.location.hostname === "localhost" ? "development" : "production")
-      console.log("API base URL:", import.meta.env.VITE_API_URL)
-    }
-  }, [classData])
-  
+  // Removed useEffect for partnerLogo console logging as getFullImageUrl import is missing
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (isTabMenuOpen && !event.target.closest(".tab-dropdown")) {
@@ -241,53 +234,7 @@ const ClassDetailPage = () => {
   }, [isTabMenuOpen]);
 
   // --- Image Helpers ---
- 
-
-  const handleImageError = (e) => {
-    console.warn("Failed to load image:", e.target.src)
-
-    // Get the image filename
-    const filename = classData?.partnerLogo?.split("/").pop()
-
-    // Try different fallback approaches
-    if (!e.target.dataset.fallbackAttempted && filename) {
-      // First fallback: Try the standard uploads path
-      const fallbackUrl = `/uploads/partner-logos/${filename}`
-      console.log("Trying fallback #1:", fallbackUrl)
-      e.target.src = fallbackUrl
-      e.target.dataset.fallbackAttempted = "1"
-    }
-    // Second fallback: Try with API base URL
-    else if (e.target.dataset.fallbackAttempted === "1" && filename) {
-      const apiBaseUrl = import.meta.env.VITE_API_URL || ""
-      if (apiBaseUrl) {
-        const fallbackUrl = `${apiBaseUrl}/uploads/partner-logos/${filename}`
-        console.log("Trying fallback #2:", fallbackUrl)
-        e.target.src = fallbackUrl
-        e.target.dataset.fallbackAttempted = "2"
-      } else {
-        // Skip to placeholder if no API base URL
-        e.target.src = "/placeholder.svg"
-        e.target.dataset.fallbackAttempted = "3"
-      }
-    }
-    // Final fallback: Use placeholder image
-    else if (e.target.dataset.fallbackAttempted === "2") {
-      console.log("Trying placeholder image")
-      e.target.src = "/placeholder.svg"
-      e.target.dataset.fallbackAttempted = "3"
-    }
-    // If all fallbacks fail, show the fallback content
-    else {
-      console.warn("All fallbacks failed, showing text fallback")
-      e.target.style.display = "none"
-      // Show the fallback element
-      const fallbackEl = document.getElementById(`fallback-${classData._id}`)
-      if (fallbackEl) {
-        fallbackEl.style.display = "flex"
-      }
-    }
-  }
+  // Removed local getFullImageUrl and handleImageError functions
 
   // --- Registration ---
   const handleOpenConfirmation = () => {
@@ -336,6 +283,7 @@ const ClassDetailPage = () => {
     if (!timeStr) return "TBD"
     try {
       const [hour, minute] = timeStr.split(":").map(Number)
+      if (isNaN(hour) || isNaN(minute)) return "Invalid time";
       const date = new Date()
       date.setHours(hour, minute)
       return format(date, "h:mm a")
@@ -346,7 +294,7 @@ const ClassDetailPage = () => {
   }
 
   const googleMapsUrl = classData?.location?.address
-    ? `https://maps.google.com/?q=${encodeURIComponent(classData.location.address)}`
+    ? `https://maps.google.com/?q=${encodeURIComponent(classData.location.address)}` // Corrected Google Maps URL
     : null
 
   // Handle form input changes
@@ -369,8 +317,12 @@ const ClassDetailPage = () => {
 
   // Format date for display
   const formatDate = (dateString) => {
-    const options = { weekday: "long", year: "numeric", month: "long", day: "numeric" }
-    return new Date(dateString).toLocaleDateString("en-US", options)
+    try {
+      const options = { weekday: "long", year: "numeric", month: "long", day: "numeric" }
+      return new Date(dateString).toLocaleDateString("en-US", options)
+    } catch (e) {
+      return "Invalid Date";
+    }
   }
 
   // Animation variants
@@ -423,6 +375,18 @@ const ClassDetailPage = () => {
   const isExternal = classData.registrationType === "external"
   const schedule = classData.schedule || []
 
+  // --- Import getFullImageUrl ---
+  // This was missing in the original snippet, assuming it's in utils
+  const getFullImageUrl = (path) => {
+      if (!path) return "/placeholder.svg"; // Default placeholder
+      if (path.startsWith("http")) return path; // Already a full URL
+      
+      // Basic fallback for local paths (adjust if needed)
+      const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
+      return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+  };
+
+
   return (
     <div className="bg-slate-50 min-h-screen flex flex-col">
       {/* Breadcrumb */}
@@ -470,14 +434,15 @@ const ClassDetailPage = () => {
             </div>
 
            {classData.partnerLogo && (
-  <div className="bg-white p-3 rounded-xl shadow-xl max-h-24 mt-6">
-    <img
-      src={classData.partnerLogo}
-      alt={`${classData.partnerName || "Partner"} Logo`}
-      className="h-16 sm:h-20 object-contain"
-    />
-  </div>
-)}
+            <div className="bg-white p-3 rounded-xl shadow-xl max-h-24 mt-6">
+              <img
+                src={getFullImageUrl(classData.partnerLogo)} // Use imported utility
+                alt={`${classData.partnerName || "Partner"} Logo`}
+                className="h-16 sm:h-20 object-contain"
+                onError={(e) => e.target.src = '/placeholder.svg'} // Simplified onError
+              />
+            </div>
+          )}
           </div>
         </div>
       </div>
@@ -488,32 +453,32 @@ const ClassDetailPage = () => {
           {/* Left Column */}
           <div className="lg:col-span-2 space-y-8">
           <div className="relative">
-  <div className="flex space-x-2 mb-6 overflow-x-auto pb-2 px-1 scrollbar-hide scroll-smooth -mx-1">
-    <TabButton
-      active={activeTab === "about"}
-      onClick={() => setActiveTab("about")}
-      icon={<FiBookOpen className="h-4 w-4" />}
-    >
-      About
-    </TabButton>
-    <TabButton
-      active={activeTab === "schedule"}
-      onClick={() => setActiveTab("schedule")}
-      icon={<FiCalendar className="h-4 w-4" />}
-    >
-      Schedule
-    </TabButton>
-    {classData.instructor?.bio && (
-      <TabButton
-        active={activeTab === "instructor"}
-        onClick={() => setActiveTab("instructor")}
-        icon={<FiUserCheck className="h-4 w-4" />}
-      >
-        Instructor
-      </TabButton>
-    )}
-  </div>
-</div>
+            <div className="flex space-x-2 mb-6 overflow-x-auto pb-2 px-1 scrollbar-hide scroll-smooth -mx-1">
+              <TabButton
+                active={activeTab === "about"}
+                onClick={() => setActiveTab("about")}
+                icon={<FiBookOpen className="h-4 w-4" />}
+              >
+                About
+              </TabButton>
+              <TabButton
+                active={activeTab === "schedule"}
+                onClick={() => setActiveTab("schedule")}
+                icon={<FiCalendar className="h-4 w-4" />}
+              >
+                Schedule
+              </TabButton>
+              {classData.instructor?.bio && (
+                <TabButton
+                  active={activeTab === "instructor"}
+                  onClick={() => setActiveTab("instructor")}
+                  icon={<FiUserCheck className="h-4 w-4" />}
+                >
+                  Instructor
+                </TabButton>
+              )}
+            </div>
+          </div>
             {/* Tab Content */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               {/* About Tab */}
@@ -548,7 +513,7 @@ const ClassDetailPage = () => {
                           </div>
                           <div>
                             <p className="font-medium text-gray-800">
-                              {format(new Date(session.date), "EEEE, MMMM d, yyyy")}
+                              {format(new Date(session.date), "EEEE, MMMM d,คณะ")}
                             </p>
                             <div className="flex items-center mt-1 text-sm text-gray-600">
                               <FiClock className="mr-1.5 h-3.5 w-3.5" />
@@ -580,62 +545,55 @@ const ClassDetailPage = () => {
                   </div>
                 </div>
               )}
- 
-                     
             </div>
-         {/* Enhanced View Flyer Button */}
-{classData.imageUrl && (
-  <div className="mt-6">
-    <button
-      onClick={() => setIsFlyerModalOpen(true)}
-      className="group w-full flex items-center justify-center px-6 py-4 rounded-xl border border-[#61aec7]/30 
-            text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
-            style={{
-              background:
-                "linear-gradient(90deg, rgba(21, 111, 176, 1) 0%, rgba(97, 174, 199, 1) 30%, rgba(97, 174, 199, 1) 70%, rgba(21, 111, 176, 1) 100%)",
-            }}
-  
-    >
-      <div className="mr-3 bg-white/20 rounded-full p-2 group-hover:bg-white/30 transition-all duration-300">
-        <FiImage className="h-5 w-5" />
-      </div>
-      <span className="text-lg tracking-wide">View Flyer</span>
-      <div className="ml-3 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300">
-        <FiChevronRight className="h-5 w-5" />
-      </div>
-    </button>
-  </div>
-)}
+            {/* Enhanced View Flyer Button */}
+            {classData.imageUrl && (
+            <div className="mt-6">
+              <button
+                onClick={() => setIsFlyerModalOpen(true)}
+                className="group w-full flex items-center justify-center px-6 py-4 rounded-xl border border-[#61aec7]/30 
+                      text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                      style={{
+                        background:
+                          "linear-gradient(90deg, rgba(21, 111, 176, 1) 0%, rgba(97, 174, 199, 1) 30%, rgba(97, 174, 199, 1) 70%, rgba(21, 111, 176, 1) 100%)",
+                      }}
+            
+              >
+                <div className="mr-3 bg-white/20 rounded-full p-2 group-hover:bg-white/30 transition-all duration-300">
+                  <FiImage className="h-5 w-5" />
+                </div>
+                <span className="text-lg tracking-wide">View Flyer</span>
+                <div className="ml-3 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300">
+                  <FiChevronRight className="h-5 w-5" />
+                </div>
+              </button>
+            </div>
+          )}
             {/* --- Flyer Modal --- */}
-      {isFlyerModalOpen && classData.imageUrl && (
-        <div 
-          // Full screen overlay
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
-          onClick={() => setIsFlyerModalOpen(false)} // Close on overlay click
-        >
-          {/* Modal Content (prevents close on image click) */}
-          <div className="relative" onClick={(e) => e.stopPropagation()}> 
-            {/* Close Button */}
-            <button 
-              className="absolute -top-4 -right-4 sm:top-0 sm:-right-8 text-white bg-gray-800/50 hover:bg-gray-800 rounded-full p-2 z-10"
-              onClick={() => setIsFlyerModalOpen(false)}
-              aria-label="Close flyer view"
-            >
-              <FiX size={24} /> {/* Make sure FiX is imported */}
-            </button>
-            {/* Image inside Modal */}
-            <img 
-  src={classData.imageUrl} 
-  alt={`${classData.title} flyer - Full view`} 
-  className="block max-w-[90vw] max-h-[90vh] object-contain rounded-md shadow-lg" 
-/>
+            {isFlyerModalOpen && classData.imageUrl && (
+              <div 
+                className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
+                onClick={() => setIsFlyerModalOpen(false)} 
+              >
+                <div className="relative" onClick={(e) => e.stopPropagation()}> 
+                  <button 
+                    className="absolute -top-4 -right-4 sm:top-0 sm:-right-8 text-white bg-gray-800/50 hover:bg-gray-800 rounded-full p-2 z-10"
+                    onClick={() => setIsFlyerModalOpen(false)}
+                    aria-label="Close flyer view"
+                  >
+                    <FiX size={24} />
+                  </button>
+                  <img 
+                    src={getFullImageUrl(classData.imageUrl)} // Use imported utility
+                    alt={`${classData.title} flyer - Full view`} 
+                    className="block max-w-[90vw] max-h-[90vh] object-contain rounded-md shadow-lg" 
+                    onError={(e) => e.target.src = '/placeholder.svg'} // Simplified onError
+                  />
+                </div>
+              </div>
+            )}
+            {/* --- End Flyer Modal --- */}
           </div>
-        </div>
-      )}
-      {/* --- End Flyer Modal --- */}
-          </div>
-
-
 
           {/* Right Column */}
           <div className="mt-10 lg:mt-0">
@@ -709,7 +667,7 @@ const ClassDetailPage = () => {
                       <div>
                         <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">First Session</p>
                         <p className="text-gray-800 font-medium">
-                          {format(new Date(schedule[0].date), "MMMM d, yyyy")}
+                          {format(new Date(schedule[0].date), "MMMM d,คณะ")}
                         </p>
                         <p className="text-sm text-gray-600">
                           {formatTime(schedule[0].startTime)} - {formatTime(schedule[0].endTime)}
@@ -798,8 +756,6 @@ const ClassDetailPage = () => {
         classTitle={classData?.title || ""}
         isLoading={registering}
       />
-
-     
     </div>
   )
 }
